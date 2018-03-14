@@ -143,11 +143,6 @@ func (a *Application) Run() error {
 				}
 			}
 
-			// Ctrl-C closes the application.
-			if event.Key() == tcell.KeyCtrlC {
-				a.Stop()
-			}
-
 			// Pass other key events to the currently focused primitive.
 			if p != nil {
 				if handler := p.InputHandler(); handler != nil {
