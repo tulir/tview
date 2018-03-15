@@ -212,6 +212,14 @@ func (b *Box) SetTitleAlign(align int) *Box {
 	return b
 }
 
+func (b *Box) GetBackgroundColor() tcell.Color {
+	return b.backgroundColor
+}
+
+func (b *Box) GetBorderColor() tcell.Color {
+	return b.borderColor
+}
+
 // Draw draws this primitive onto the screen.
 func (b *Box) Draw(screen tcell.Screen) {
 	// Don't draw anything if there is no space.
