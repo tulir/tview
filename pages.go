@@ -99,6 +99,15 @@ func (p *Pages) RemovePage(name string) *Pages {
 	return p
 }
 
+// Clear removes all pages
+func (p *Pages) Clear() *Pages {
+	p.pages = []*page{}
+	if p.changed != nil {
+		p.changed()
+	}
+	return p
+}
+
 // HasPage returns true if a page with the given name exists in this object.
 func (p *Pages) HasPage(name string) bool {
 	for _, page := range p.pages {
