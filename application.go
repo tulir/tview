@@ -91,16 +91,6 @@ func (a *Application) Run() error {
 		return err
 	}
 
-	// We catch panics to clean up because they mess up the terminal.
-	defer func() {
-		if p := recover(); p != nil {
-			if a.screen != nil {
-				a.screen.Fini()
-			}
-			panic(p)
-		}
-	}()
-
 	// Draw the screen for the first time.
 	a.Unlock()
 	a.Draw()
