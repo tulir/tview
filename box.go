@@ -187,6 +187,10 @@ func (b *Box) SetBorder(show bool) *Box {
 	return b
 }
 
+func (b *Box) HasBorder() bool {
+	return b.border
+}
+
 // SetBorderColor sets the box's border color.
 func (b *Box) SetBorderColor(color tcell.Color) *Box {
 	b.borderColor = color
