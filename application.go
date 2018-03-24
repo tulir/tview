@@ -33,6 +33,11 @@ type Application struct {
 	// be forwarded).
 	inputCapture func(event *tcell.EventKey) *tcell.EventKey
 
+	// An optional capture function which receives a mouse event and returns the
+	// event to be forwarded to the default input handler (nil if nothing should
+	// be forwarded).
+	mouseCapture func(event *tcell.EventMouse) *tcell.EventMouse
+
 	// An optional callback function which is invoked just before the root
 	// primitive is drawn.
 	beforeDraw func(screen tcell.Screen) bool
@@ -70,6 +75,22 @@ func (a *Application) GetInputCapture() func(event *tcell.EventKey) *tcell.Event
 	return a.inputCapture
 }
 
+// SetMouseCapture sets a function which captures all mouse events before they are
+// forwarded to the mouse event handler of the primitive which currently has
+// focus. This function can then choose to forward that mouse event (or a
+// different one) by returning it or stop the key event processing by returning
+// nil.
+func (a *Application) SetMouseCapture(capture func(event *tcell.EventMouse) *tcell.EventMouse) *Application {
+	a.mouseCapture = capture
+	return a
+}
+
+// GetMouseCapture returns the function installed with SetMouseCapture() or nil
+// if no such function has been installed.
+func (a *Application) GetMouseCapture() func(event *tcell.EventMouse) *tcell.EventMouse {
+	return a.mouseCapture
+}
+
 func (a *Application) GetScreen() tcell.Screen {
 	return a.screen
 }
@@ -90,6 +111,7 @@ func (a *Application) Run() error {
 		a.Unlock()
 		return err
 	}
+	a.screen.EnableMouse()
 
 	// Draw the screen for the first time.
 	a.Unlock()
@@ -144,6 +166,28 @@ func (a *Application) Run() error {
 						a.SetFocus(p)
 					})
 					a.Draw()
+				}
+			}
+		case *tcell.EventMouse:
+			a.RLock()
+			p := a.focus
+			a.RUnlock()
+
+			// Intercept keys.
+			if a.mouseCapture != nil {
+				event = a.mouseCapture(event)
+				if event == nil {
+					break // Don't forward event.
+				}
+			}
+
+			// Pass other key events to the currently focused primitive.
+			if p != nil {
+				if handler := p.MouseHandler(); handler != nil {
+					handler(event, func(p Primitive) {
+						a.SetFocus(p)
+					})
+					//a.Draw()
 				}
 			}
 		case *tcell.EventResize:
