@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/gdamore/tcell"
+	"maunium.net/go/tcell"
 )
 
 // Application represents the top node of an application.

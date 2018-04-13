@@ -3,7 +3,7 @@ package tview
 import (
 	"strings"
 
-	"github.com/gdamore/tcell"
+	"maunium.net/go/tcell"
 )
 
 // DefaultFormFieldWidth is the default field screen width of form elements

@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gdamore/tcell"
+	"maunium.net/go/tcell"
 	"github.com/rivo/tview"
 )
 

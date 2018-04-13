@@ -1,7 +1,7 @@
 package tview
 
 import (
-	"github.com/gdamore/tcell"
+	"maunium.net/go/tcell"
 )
 
 // Button is labeled box that triggers an action when selected.

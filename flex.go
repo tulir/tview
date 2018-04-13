@@ -1,7 +1,7 @@
 package tview
 
 import (
-	"github.com/gdamore/tcell"
+	"maunium.net/go/tcell"
 )
 
 // Configuration values.

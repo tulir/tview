@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gdamore/tcell"
+	"maunium.net/go/tcell"
 	"github.com/rivo/tview"
 )
 
@@ -56,7 +56,7 @@ const textView2 = `[green]package[white] main
 [green]import[white] (
     [red]"strconv"[white]
 
-    [red]"github.com/gdamore/tcell"[white]
+    [red]"maunium.net/go/tcell"[white]
     [red]"github.com/rivo/tview"[white]
 )
 

@@ -54,7 +54,7 @@ Refer to https://godoc.org/github.com/rivo/tview for the package's documentation
 
 ## Dependencies
 
-This package is based on [github.com/gdamore/tcell](https://github.com/gdamore/tcell) (and its dependencies).
+This package is based on [maunium.net/go/tcell](https://maunium.net/go/tcell) (and its dependencies).
 
 ## Your Feedback
 

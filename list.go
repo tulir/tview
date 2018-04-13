@@ -3,7 +3,7 @@ package tview
 import (
 	"fmt"
 
-	"github.com/gdamore/tcell"
+	"maunium.net/go/tcell"
 )
 
 // listItem represents one item in a List.

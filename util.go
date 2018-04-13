@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/gdamore/tcell"
+	"maunium.net/go/tcell"
 	runewidth "github.com/mattn/go-runewidth"
 )
 

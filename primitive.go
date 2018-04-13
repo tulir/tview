@@ -1,6 +1,6 @@
 package tview
 
-import "github.com/gdamore/tcell"
+import "maunium.net/go/tcell"
 
 // Primitive is the top-most interface for all graphical primitives.
 type Primitive interface {
