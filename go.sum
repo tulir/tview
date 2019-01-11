@@ -9,3 +9,7 @@ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0/go.mod h1:OdE7CF6DbADk7lN8LIKRzRJTTZXIjtWgA5THM5lhBAw=
 maunium.net/go/tcell v0.0.0-20190111210611-542340841245 h1:JIekRWZ4na6cZJa5VMwLFpuiGzmeX+5Xx+WRVOHQHuk=
 maunium.net/go/tcell v0.0.0-20190111210611-542340841245/go.mod h1:U+akxk8CP6vAWV74r2NOqEMMHw6kPGWTyvjzCtemxtM=
+maunium.net/go/tcell v0.0.0-20190111212645-703b3f6ecec9 h1:aSZPhcBmGu8MIddPxWNksfjbXHmlRL0yUddwB9CP4s0=
+maunium.net/go/tcell v0.0.0-20190111212645-703b3f6ecec9/go.mod h1:U+akxk8CP6vAWV74r2NOqEMMHw6kPGWTyvjzCtemxtM=
+maunium.net/go/tcell v0.0.0-20190111223412-5e74142cb009 h1:4lojuJmNSun1nUB67m3DGg+RkYg1MUO6aUxgKQU5iZk=
+maunium.net/go/tcell v0.0.0-20190111223412-5e74142cb009/go.mod h1:U+akxk8CP6vAWV74r2NOqEMMHw6kPGWTyvjzCtemxtM=
