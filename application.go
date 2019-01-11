@@ -24,12 +24,10 @@ const queueSize = 100
 type Application struct {
 	sync.RWMutex
 
-	// The application's screen.
+	// The application's screen. Apart from Run(), this variable should never be
+	// set directly. Always use the screenReplacement channel after calling
+	// Fini(), to set a new screen (or nil to stop the application).
 	screen tcell.Screen
-
-	// Indicates whether the application's screen is currently active. This is
-	// false during suspended mode.
-	running bool
 
 	// The primitive which currently has the keyboard focus.
 	focus Primitive
@@ -66,16 +64,19 @@ type Application struct {
 	// Functions queued from goroutines, used to serialize updates to primitives.
 	updates chan func()
 
-	// A channel which signals the end of the suspended mode.
-	suspendToken chan struct{}
+	// An object that the screen variable will be set to after Fini() was called.
+	// Use this channel to set a new screen object for the application
+	// (screen.Init() and draw() will be called implicitly). A value of nil will
+	// stop the application.
+	screenReplacement chan tcell.Screen
 }
 
 // NewApplication creates and returns a new application.
 func NewApplication() *Application {
 	return &Application{
-		events:       make(chan tcell.Event, queueSize),
-		updates:      make(chan func(), queueSize),
-		suspendToken: make(chan struct{}, 1),
+		events:            make(chan tcell.Event, queueSize),
+		updates:           make(chan func(), queueSize),
+		screenReplacement: make(chan tcell.Screen, 1),
 	}
 }
 
@@ -121,29 +122,29 @@ func (a *Application) GetScreen() tcell.Screen {
 
 // SetScreen allows you to provide your own tcell.Screen object. For most
 // applications, this is not needed and you should be familiar with
-// tcell.Screen when using this function. Run() will call Init() and Fini() on
-// the provided screen object.
+// tcell.Screen when using this function.
 //
-// This function is typically called before calling Run(). Calling it while an
-// application is running will switch the application to the new screen. Fini()
-// will be called on the old screen and Init() on the new screen (errors
-// returned by Init() will lead to a panic).
-//
-// Note that calling Suspend() will invoke Fini() on your screen object and it
-// will not be restored when suspended mode ends. Instead, a new default screen
-// object will be created.
+// This function is typically called before the first call to Run(). Init() need
+// not be called on the screen.
 func (a *Application) SetScreen(screen tcell.Screen) *Application {
+	if screen == nil {
+		return a // Invalid input. Do nothing.
+	}
+
 	a.Lock()
-	defer a.Unlock()
-	if a.running {
-		a.screen.Fini()
+	if a.screen == nil {
+		// Run() has not been called yet.
+		a.screen = screen
+		a.Unlock()
+		return a
 	}
-	a.screen = screen
-	if a.running {
-		if err := a.screen.Init(); err != nil {
-			panic(err)
-		}
-	}
+
+	// Run() is already in progress. Exchange screen.
+	oldScreen := a.screen
+	a.Unlock()
+	oldScreen.Fini()
+	a.screenReplacement <- screen
+
 	return a
 }
 
@@ -160,13 +161,11 @@ func (a *Application) Run() error {
 			a.Unlock()
 			return err
 		}
+		if err = a.screen.Init(); err != nil {
+			a.Unlock()
+			return err
+		}
 	}
-	if err = a.screen.Init(); err != nil {
-		a.Unlock()
-		return err
-	}
-	a.screen.EnableMouse()
-	a.running = true
 
 	// We catch panics to clean up because they mess up the terminal.
 	defer func() {
@@ -174,7 +173,6 @@ func (a *Application) Run() error {
 			if a.screen != nil {
 				a.screen.Fini()
 			}
-			a.running = false
 			panic(p)
 		}
 	}()
@@ -186,41 +184,45 @@ func (a *Application) Run() error {
 	// Separate loop to wait for screen events.
 	var wg sync.WaitGroup
 	wg.Add(1)
-	a.suspendToken <- struct{}{} // We need this to get started.
 	go func() {
 		defer wg.Done()
-		for range a.suspendToken {
-			for {
-				a.RLock()
-				screen := a.screen
-				a.RUnlock()
-				if screen == nil {
-					// We have no screen. We might need to stop.
-					break
-				}
-
-				// Wait for next event and queue it.
-				event := screen.PollEvent()
-				if event != nil {
-					// Regular event. Queue.
-					a.QueueEvent(event)
-					continue
-				}
-
-				// A screen was finalized (event is nil).
-				a.RLock()
-				running := a.running
-				a.RUnlock()
-				if running {
-					// The application was stopped. End the event loop.
-					a.QueueEvent(nil)
-					return
-				}
-
-				// We're in suspended mode (running is false). Pause and wait for new
-				// token.
+		for {
+			a.RLock()
+			screen := a.screen
+			a.RUnlock()
+			if screen == nil {
+				// We have no screen. Let's stop.
+				a.QueueEvent(nil)
 				break
 			}
+
+			// Wait for next event and queue it.
+			event := screen.PollEvent()
+			if event != nil {
+				// Regular event. Queue.
+				a.QueueEvent(event)
+				continue
+			}
+
+			// A screen was finalized (event is nil). Wait for a new scren.
+			screen = <-a.screenReplacement
+			if screen == nil {
+				// No new screen. We're done.
+				a.QueueEvent(nil)
+				return
+			}
+
+			// We have a new screen. Keep going.
+			a.Lock()
+			a.screen = screen
+			a.Unlock()
+
+			// Initialize and draw this screen.
+			if err := screen.Init(); err != nil {
+				panic(err)
+			}
+			a.screen.EnableMouse()
+			a.draw()
 		}
 	}()
 
@@ -244,6 +246,7 @@ EventLoop:
 				if inputCapture != nil {
 					event = inputCapture(event)
 					if event == nil {
+						a.draw()
 						continue // Don't forward event.
 					}
 				}
@@ -307,6 +310,9 @@ EventLoop:
 				a.RLock()
 				screen := a.screen
 				a.RUnlock()
+				if screen == nil {
+					continue
+				}
 				screen.Clear()
 				a.draw()
 			}
@@ -317,9 +323,9 @@ EventLoop:
 		}
 	}
 
-	a.running = false
-	close(a.suspendToken)
+	// Wait for the event loop to finish.
 	wg.Wait()
+	a.screen = nil
 
 	return nil
 }
@@ -334,7 +340,7 @@ func (a *Application) Stop() {
 	}
 	a.screen = nil
 	screen.Fini()
-	// a.running is still true, the main loop will clean up.
+	a.screenReplacement <- nil
 }
 
 // Suspend temporarily suspends the application by exiting terminal UI mode and
@@ -345,42 +351,26 @@ func (a *Application) Stop() {
 // was called. If false is returned, the application was already suspended,
 // terminal UI mode was not exited, and "f" was not called.
 func (a *Application) Suspend(f func()) bool {
-	a.Lock()
-
+	a.RLock()
 	screen := a.screen
+	a.RUnlock()
 	if screen == nil {
-		// Screen has not yet been initialized.
-		a.Unlock()
-		return false
+		return false // Screen has not yet been initialized.
 	}
 
-	// Enter suspended mode. Make a new screen here already so our event loop can
-	// continue.
-	a.screen = nil
-	a.running = false
+	// Enter suspended mode.
 	screen.Fini()
-	a.Unlock()
 
 	// Wait for "f" to return.
 	f()
 
-	// Initialize our new screen and draw the contents.
-	a.Lock()
+	// Make a new screen.
 	var err error
-	a.screen, err = tcell.NewScreen()
+	screen, err = tcell.NewScreen()
 	if err != nil {
-		a.Unlock()
 		panic(err)
 	}
-	if err = a.screen.Init(); err != nil {
-		a.Unlock()
-		panic(err)
-	}
-	a.screen.EnableMouse()
-	a.running = true
-	a.Unlock()
-	a.draw()
-	a.suspendToken <- struct{}{}
+	a.screenReplacement <- screen
 	// One key event will get lost, see https://github.com/gdamore/tcell/issues/194
 
 	// Continue application loop.
@@ -395,6 +385,17 @@ func (a *Application) Draw() *Application {
 		a.draw()
 	})
 	return a
+}
+
+// ForceDraw refreshes the screen immediately. Use this function with caution as
+// it may lead to race conditions with updates to primitives in other
+// goroutines. It is always preferrable to use Draw() instead. Never call this
+// function from a goroutine.
+//
+// It is safe to call this function during queued updates and direct event
+// handling.
+func (a *Application) ForceDraw() *Application {
+	return a.draw()
 }
 
 // draw actually does what Draw() promises to do.
